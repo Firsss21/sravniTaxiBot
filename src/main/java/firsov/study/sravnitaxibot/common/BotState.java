@@ -1,5 +1,5 @@
 package firsov.study.sravnitaxibot.common;
 
 public enum BotState {
-    DEFAULT
+    DEFAULT, INS_CITY, INS_ADDRESS
 }

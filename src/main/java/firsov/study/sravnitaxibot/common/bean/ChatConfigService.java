@@ -60,4 +60,27 @@ public class ChatConfigService {
     public BotState getBotState(Long chatId) {
         return chatConfigRepo.findAllByChatId(chatId).getBotState();
     }
+
+
+    /**
+     * Устанавливает чату город
+     *
+     * @param chatId
+     * @param city
+     */
+    public void setCity(Long chatId, String city) {
+        ChatEntity chatConfig = chatConfigRepo.findAllByChatId(chatId);
+        chatConfig.setCity(city);
+        chatConfigRepo.save(chatConfig);
+    }
+
+    /**
+     * Получает город чата
+     *
+     * @param chatId
+     * @return
+     */
+    public String getCity(Long chatId) {
+        return chatConfigRepo.findAllByChatId(chatId).getCity();
+    }
 }

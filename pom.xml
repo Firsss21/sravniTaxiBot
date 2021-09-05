@@ -71,6 +71,18 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.uber.sdk/uber-rides -->
+        <dependency>
+            <groupId>com.uber.sdk</groupId>
+            <artifactId>uber-rides</artifactId>
+            <version>0.8.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.uber.sdk</groupId>
+            <artifactId>uber-core-oauth-client-adapter</artifactId>
+            <version>0.8.0</version>
+        </dependency>
     </dependencies>
 
     <build>
