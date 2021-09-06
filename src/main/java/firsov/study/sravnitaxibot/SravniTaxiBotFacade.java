@@ -7,8 +7,10 @@ import firsov.study.sravnitaxibot.common.bean.ChatConfigService;
 import firsov.study.sravnitaxibot.common.bean.Locationer;
 import firsov.study.sravnitaxibot.common.bean.MessageGenerator;
 import firsov.study.sravnitaxibot.common.bean.TaxiInterface;
+import firsov.study.sravnitaxibot.common.entity.Location;
 import firsov.study.sravnitaxibot.common.model.Coords;
 import firsov.study.sravnitaxibot.common.service.KeyboardService;
+import firsov.study.sravnitaxibot.common.service.TaxiManagerService;
 import firsov.study.sravnitaxibot.telegram.BotFacade;
 import firsov.study.sravnitaxibot.telegram.CallbackAnswer;
 import firsov.study.sravnitaxibot.telegram.TelegramBot;
@@ -38,7 +40,18 @@ public class SravniTaxiBotFacade implements BotFacade {
     @Autowired
     private Locationer locationer;
     @Autowired
-    private TaxiInterface taxi;
+    private TaxiManagerService taxiManagerService;
+
+    private String getMessage(Update update) {
+        if (update.hasMessage() && update.getMessage().getText() != null) {
+            return update.getMessage().getText();
+        } else if (update.hasChannelPost() && update.getChannelPost().getText() != null) {
+            return update.getChannelPost().getText();
+        } else if (update.hasCallbackQuery() && update.getCallbackQuery().getData() != null) {
+            return update.getCallbackQuery().getData();
+        }
+        return "";
+    }
 
     @Override
     public void handleUpdate(Update update) throws IOException, InterruptedException {
@@ -48,17 +61,18 @@ public class SravniTaxiBotFacade implements BotFacade {
 
         if (update.hasMessage()) {
             chatId = update.getMessage().getChatId();
-            messageText = update.getMessage().getText().toUpperCase(Locale.ROOT).replace("/", "");
+            messageText = update.getMessage().getText() == null ? "" : update.getMessage().getText().toUpperCase(Locale.ROOT).replace("/", "");
             userFirstName = update.getMessage().getChat().getFirstName();
         } else if (update.hasChannelPost()) {
             chatId = update.getChannelPost().getChatId();
-            messageText = update.getChannelPost().getText().toUpperCase(Locale.ROOT).replace("/", "");
+            messageText = update.getChannelPost().getText() == null ? "" : update.getChannelPost().getText().toUpperCase(Locale.ROOT).replace("/", "");
+
             userFirstName = update.getChannelPost().getChat().getFirstName();
         } else if (update.hasCallbackQuery()) {
             callbackAnswer.callbackAnswer(update.getCallbackQuery().getId());
 
             chatId = update.getCallbackQuery().getMessage().getChatId();
-            messageText = update.getCallbackQuery().getData().toUpperCase(Locale.ROOT);
+            messageText = update.getCallbackQuery().getData() == null ? "" : update.getCallbackQuery().getData().toUpperCase(Locale.ROOT);
             sendMessage(update, update.getCallbackQuery().getData());
 
         } else if (update.hasMyChatMember()) {
@@ -99,7 +113,7 @@ public class SravniTaxiBotFacade implements BotFacade {
     private void sendMessage(Update update, String messageText) {
         SendMessage.SendMessageBuilder messageBuilder = SendMessage.builder();
         Long chatId = setChatIdToMessageBuilder(update, messageBuilder);
-
+        messageBuilder.replyMarkup(keyboardService.setKeyBoard(chatId));
         messageBuilder.text(messageText);
 
         try {
@@ -116,11 +130,15 @@ public class SravniTaxiBotFacade implements BotFacade {
 
         messageBuilder.text(messageText);
 
-        switch (keyboardType) {
-            case FIND: {
-                messageBuilder.replyMarkup(keyboardService.setMainMenuKeyboard(chatId));
-            }
-        }
+//        switch (keyboardType) {
+//            case AUTO: {
+//                messageBuilder.replyMarkup(keyboardService.setKeyBoard(chatId));
+//            }
+//            case FIND: {
+//                messageBuilder.replyMarkup(keyboardService.setMainMenuKeyboard(chatId));
+//            }
+//        }
+        messageBuilder.replyMarkup(keyboardService.setKeyBoard(chatId));
 
         try {
             telegramBot.execute(messageBuilder.build());
@@ -139,7 +157,7 @@ public class SravniTaxiBotFacade implements BotFacade {
             chatConfigService.setBotState(chatId, BotState.DEFAULT);
             return;
         }
-        if (messageText.equals(Command.CANCEL.name())) {
+        if (messageText.equals(Command.CANCEL.name()) || messageText.equals("ОТМЕНИТЬ")) {
             if (botState == BotState.DEFAULT) {
                 sendMessage(update, "Нет активной команды для отклонения");
             } else {
@@ -154,22 +172,27 @@ public class SravniTaxiBotFacade implements BotFacade {
             return;
         }
         if (messageText.equals(Command.CITY.name())) {
-            sendMessage(update, chatConfigService.getCity(chatId));
+            if (chatConfigService.getCity(chatId) == null) {
+                sendMessage(update, "Город не выбран");
+            } else {
+                sendMessage(update, chatConfigService.getCity(chatId));
+            }
             return;
         }
 
         switch (botState) {
             case DEFAULT: {
-                if (messageText.equals(Command.FIND.name()) || messageText.equals(messageGenerator.generateFindKeyboard())) {
+                if (messageText.equals(Command.FIND.name()) || messageText.equals(messageGenerator.generateFindKeyboard().toUpperCase(Locale.ROOT))) {
                     if (chatConfigService.getCity(chatId) == null) {
                         chatConfigService.setBotState(chatId, BotState.INS_CITY);
                         sendMessage(update, "Введите название своего города");
                     } else {
-                        sendMessage(update, "Введите куда вы хотите направиться");
-                        chatConfigService.setBotState(chatId, BotState.INS_ADDRESS);
+                        chatConfigService.setBotState(chatId, BotState.INS_DEPART_ADDRESS);
+                        sendMessage(update, "Введите откуда вы хотите направиться");
+//                        keyboardService.setGetCurLocation(chatId);
                     }
                 }
-                if (messageText.equals(Command.SETCITY.name())) {
+                if (messageText.equals(Command.SETCITY.name()) || messageText.equals("Выбрать город".toUpperCase(Locale.ROOT))) {
                     chatConfigService.setBotState(chatId, BotState.INS_CITY);
                     if (chatConfigService.getCity(chatId) == null) {
                         sendMessage(update, "Введите название своего города");
@@ -183,21 +206,48 @@ public class SravniTaxiBotFacade implements BotFacade {
                 if (!messageText.equals("") && locationer.isCity(messageText)) {
                     chatConfigService.setCity(chatId, messageText);
                     chatConfigService.setBotState(chatId, BotState.DEFAULT);
+                    sendMessage(update, "Город успешно выбран!");
                     break;
                 }
                 sendMessage(update, "Введите корректное название своего города");
                 break;
             }
-            //  messageText.substring(1).toLowerCase(Locale.ROOT)
-            case INS_ADDRESS: {
-                String address = chatConfigService.getCity(chatId) + ", " + messageText;
+            case INS_DEPART_ADDRESS: {
+                boolean success = false;
+                if (update.getMessage().getLocation() != null) {
+                    chatConfigService.setLocation(chatId, new Location(update.getMessage().getLocation().getLatitude(), update.getMessage().getLocation().getLongitude()));
+                    success = true;
+
+                } else {
+                    String address = chatConfigService.getCity(chatId) + ", " + getMessage(update);
+                    if (!messageText.equals("") && locationer.isRightAddress(address)) {
+                        chatConfigService.setLocation(chatId, new Location(locationer.getCoords(address)));
+                        success = true;
+                    } else {
+                        sendMessage(update, "Введите корректный адресс");
+                        return;
+                    }
+                }
+
+                if (success) {
+                    sendMessage(update, "Введите адресс прибытия");
+                    chatConfigService.setBotState(chatId, BotState.INS_DEST_ADDRESS);
+                } else {
+                    chatConfigService.setBotState(chatId, BotState.DEFAULT);
+                    sendMessage(update, "error");
+                }
+
+
+                break;
+            }
+            case INS_DEST_ADDRESS: {
+                String address = chatConfigService.getCity(chatId) + ", " + getMessage(update);
                 if (!messageText.equals("") && locationer.isRightAddress(address)) {
                     Coords dest = locationer.getCoords(address);
-                    Coords start = new Coords(update.getMessage().getLocation().getLatitude(),
-                            update.getMessage().getLocation().getLongitude());
-                    int price = taxi.getPrice(start, dest);
-                    sendMessage(update, "Citimobil - " + price + " р");
+                    Coords start = new Coords(chatConfigService.getLocation(chatId));
+                    String msg = taxiManagerService.getPrices(start, dest);
                     chatConfigService.setBotState(chatId, BotState.DEFAULT);
+                    sendMessage(update, msg);
                     break;
                 }
                 sendMessage(update, "Введите корректный адресс прибытия");
@@ -205,67 +255,6 @@ public class SravniTaxiBotFacade implements BotFacade {
             }
         }
 
-//        if (botState != chatConfigService.getBotState(chatId)) {
-//            handleBotState(update, chatId, messageText, userFirstName);
-//        }
 
-//        switch (botState) {
-//            case DEFAULT: {
-//                if (messageText.equals(MainCommand.HELP.name())) {
-//                    sendMessage(update, messageGenerator.generateHelpMessage());
-//                    sendMessage(update, "Показать погоду?", KeyboardType.GET_NOW);
-//                } else if (messageText.equals(MainCommand.SETCITY.name())) {
-//                    chatConfigService.setBotState(chatId, BotState.SET_CITY);
-//                    sendMessage(update, "Введите новый стандартный город");
-//                } else if (messageText.equals(MainCommand.CITY.name())) {
-//                    if (chatConfigService.getCity(chatId) != null && !chatConfigService.getCity(chatId).equals(""))
-//                        sendMessage(update, messageGenerator.generateSuccessGetCity(chatConfigService.getCity(chatId)));
-//                    else sendMessage(update, messageGenerator.generateErrorGetCity());
-//                } else if (messageText.equals(MainCommand.NOW.name()) || messageText.equals(messageGenerator.generateMenuWeather().toUpperCase(Locale.ROOT))) {
-//                    if (chatConfigService.getCity(chatId) == null) {
-//                        chatConfigService.setBotState(chatId, BotState.SET_CITY);
-//                        sendMessage(update, "Введите новый стандартный город");
-//                    } else {
-//                        sendMessage(update, messageGenerator.generateCurrentWeather(chatConfigService.getCity(chatId)));
-//                    }
-//                }
-//
-//                break;
-//            }
-//
-//            case SET_CITY: {
-//
-//                if (weatherService.isCity(messageText.toLowerCase(Locale.ROOT))) {
-//                    chatConfigService.setCity(chatId, messageText.charAt(0) + messageText.substring(1).toLowerCase(Locale.ROOT));
-//                    chatConfigService.setBotState(chatId, BotState.DEFAULT);
-//                    sendMessage(update, messageGenerator.generateSuccessSetCity(chatConfigService.getCity(chatId)));
-//                } else sendMessage(update, messageGenerator.generateErrorCity());
-//
-//                break;
-//            }
-//
-//            case NOW: {
-//
-//                if (messageText.equals(keyboardService.getChooseCityNowButtonData().toUpperCase(Locale.ROOT))) {
-//                    chatConfigService.setBotState(chatId, BotState.SEARCH_NOW);
-//                } else {
-//                    chatConfigService.setBotState(chatId, BotState.DEFAULT);
-//                    sendMessage(update, messageGenerator.generateCurrentWeather(chatConfigService.getCity(chatId)));
-//                }
-//                break;
-//            }
-//
-//            case SEARCH_NOW: {
-//                if (!weatherService.isCity(messageText)) {
-//                    sendMessage(update, messageGenerator.generateErrorCity());
-//                } else {
-//                    sendMessage(update, messageGenerator.generateCurrentWeather(messageText.charAt(0) + messageText.substring(1).toLowerCase(Locale.ROOT)));
-//                    chatConfigService.setCity(chatId, messageText);
-//                    chatConfigService.setBotState(chatId, BotState.DEFAULT);
-//                }
-//
-//                break;
-//            }
-//        }
     }
 }

@@ -2,24 +2,15 @@ package firsov.study.sravnitaxibot.common.service;
 
 import firsov.study.sravnitaxibot.common.bean.TaxiInterface;
 import firsov.study.sravnitaxibot.common.model.Coords;
-import firsov.study.sravnitaxibot.common.model.Location;
 import firsov.study.sravnitaxibot.common.model.citymobil.Price;
-import firsov.study.sravnitaxibot.common.model.citymobil.Request;
 import firsov.study.sravnitaxibot.common.model.citymobil.Response;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 @Service
 public class CitimobilTaxiService implements TaxiInterface {
@@ -30,7 +21,8 @@ public class CitimobilTaxiService implements TaxiInterface {
     @Override
     public int getPrice(Coords start, Coords destination) {
         Response response = getResponse(start, destination);
-        if (response.getPrices().size() > 0) {
+        System.out.println(response);
+        if (response.getPrices().size() <= 0) {
             return 0;
         } else {
             int lowest = Integer.MAX_VALUE;
@@ -42,20 +34,29 @@ public class CitimobilTaxiService implements TaxiInterface {
             return lowest;
         }
     }
-//    @Cacheable(value = "price", key = "{start.latitude, start.longitude, dest.latitude, dest.latitude}")
+
+    //    @Cacheable(value = "price", key = "{start.latitude, start.longitude, dest.latitude, dest.latitude}")
     public Response getResponse(Coords start, Coords dest) {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         JSONObject personJsonObject = new JSONObject();
-        personJsonObject.put("del_latitude", start.getLatitude());
-        personJsonObject.put("del_longitude", start.getLongitude());
-        personJsonObject.put("latitude", dest.getLatitude());
-        personJsonObject.put("longitude", dest.getLongitude());
+        personJsonObject.put("del_latitude", dest.getLatitude());
+        personJsonObject.put("del_longitude", dest.getLongitude());
+        personJsonObject.put("latitude", start.getLatitude());
+        personJsonObject.put("longitude", start.getLongitude());
         personJsonObject.put("method", "getprice");
+        personJsonObject.put("tariff_group", new int[]{2, 4, 13, 7, 5});
         personJsonObject.put("ver", "4.59.0");
+        HttpEntity<String> req = new HttpEntity<>(personJsonObject.toString());
         HttpEntity<String> request = new HttpEntity<>(personJsonObject.toString(), headers);
+        System.out.println(request);
         return restTemplate.postForObject(apiLink, request, Response.class);
     }
 
+
+    @Override
+    public String getName() {
+        return "Ситимобил";
+    }
 }

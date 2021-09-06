@@ -15,6 +15,10 @@ public class MessageGenerator {
         return EmojiParser.parseToUnicode("Сравнить :full_moon_with_face:");
     }
 
+    public String generateCancelKey() {
+        return "Отменить";
+    }
+
     public String generateHelpMessage() {
         String message =  ":sunny: Вот мои доступные команды :sunny:\n\n";
 

@@ -2,7 +2,9 @@ package firsov.study.sravnitaxibot.common.bean;
 
 import firsov.study.sravnitaxibot.common.BotState;
 import firsov.study.sravnitaxibot.common.entity.ChatEntity;
+import firsov.study.sravnitaxibot.common.entity.Location;
 import firsov.study.sravnitaxibot.common.repository.ChatConfigRepo;
+import firsov.study.sravnitaxibot.common.repository.LocationRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -10,7 +12,8 @@ import org.springframework.stereotype.Service;
 public class ChatConfigService {
     @Autowired
     ChatConfigRepo chatConfigRepo;
-
+    @Autowired
+    LocationRepo locationRepo;
 
     /**
      * Если такой чат уже существует, то true, иначе false
@@ -81,6 +84,18 @@ public class ChatConfigService {
      * @return
      */
     public String getCity(Long chatId) {
-        return chatConfigRepo.findAllByChatId(chatId).getCity();
+        ChatEntity allByChatId = chatConfigRepo.findAllByChatId(chatId);
+        return allByChatId.getCity();
+    }
+
+    public Location getLocation(Long chatId) {
+        return chatConfigRepo.findAllByChatId(chatId).getLocation();
+    }
+
+    public void setLocation(Long chatId, Location location) {
+        locationRepo.save(location);
+        ChatEntity chatConfig = chatConfigRepo.findAllByChatId(chatId);
+        chatConfig.setLocation(location);
+        chatConfigRepo.save(chatConfig);
     }
 }

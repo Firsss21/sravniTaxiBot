@@ -8,11 +8,14 @@ services:
       - postgresql
   postgresql:
     image: postgres:alpine3.14
+    volumes:
+      - /private/var/lib/postgresql:/var/lib/postgresql
     restart: always
     environment:
       POSTGRES_PASSWORD: password
       POSTGRES_USER: user
       POSTGRES_DB: bot
-    ports:
-      - "5432:5432"
+
+#    ports:
+#      - "5432:5432"
 
