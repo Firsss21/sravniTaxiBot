@@ -4,7 +4,7 @@
 
 Сравни такси бот
 
-[Ссылка на бота](//telegram.me/taxi_sravni_bot) (disabled)
+[Ссылка на бота](//telegram.me/taxi_sravni_bot) [**active**] 
 
 -----
 
