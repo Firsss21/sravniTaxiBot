@@ -10,10 +10,12 @@ import firsov.study.sravnitaxibot.common.bean.TaxiInterface;
 import firsov.study.sravnitaxibot.common.entity.Location;
 import firsov.study.sravnitaxibot.common.model.Coords;
 import firsov.study.sravnitaxibot.common.service.KeyboardService;
+import firsov.study.sravnitaxibot.common.service.LogService;
 import firsov.study.sravnitaxibot.common.service.TaxiManagerService;
 import firsov.study.sravnitaxibot.telegram.BotFacade;
 import firsov.study.sravnitaxibot.telegram.CallbackAnswer;
 import firsov.study.sravnitaxibot.telegram.TelegramBot;
+import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,6 +43,8 @@ public class SravniTaxiBotFacade implements BotFacade {
     private Locationer locationer;
     @Autowired
     private TaxiManagerService taxiManagerService;
+    @Autowired
+    private LogService logService;
 
     private String getMessage(Update update) {
         if (update.hasMessage() && update.getMessage().getText() != null) {
@@ -151,6 +155,10 @@ public class SravniTaxiBotFacade implements BotFacade {
     private void handleBotState(Update update, Long chatId, String messageText, String userFirstName) {
 
         BotState botState = chatConfigService.getBotState(chatId);
+        if (messageText.equals("статистика".toUpperCase())) {
+            sendMessage(update, logService.getStatistic());
+            return;
+        }
 
         if (messageText.equals(Command.START.name())) {
             sendMessage(update, messageGenerator.generateStartMessage(userFirstName), KeyboardType.FIND);
@@ -243,6 +251,7 @@ public class SravniTaxiBotFacade implements BotFacade {
             case INS_DEST_ADDRESS: {
                 String address = chatConfigService.getCity(chatId) + ", " + getMessage(update);
                 if (!messageText.equals("") && locationer.isRightAddress(address)) {
+                    logService.saveLog(chatId, address);
                     Coords dest = locationer.getCoords(address);
                     Coords start = new Coords(chatConfigService.getLocation(chatId));
                     String msg = taxiManagerService.getPrices(start, dest);

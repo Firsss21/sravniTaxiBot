@@ -14,17 +14,7 @@ import java.util.List;
 @Service
 public class TaxiManagerService {
     @Autowired
-    private YandexTaxiService yandexTaxiService;
-    @Autowired
-    private CitimobilTaxiService citimobilTaxiService;
-
-    private List<TaxiInterface> taxiList = new ArrayList<>();
-
-    @EventListener({ ApplicationReadyEvent.class})
-    private void fillTaxiList() {
-        taxiList.add(citimobilTaxiService);
-        taxiList.add(yandexTaxiService);
-    }
+    private List<TaxiInterface> taxiList;
 
     public String getPrices(Coords start, Coords dest) {
         String price = "";

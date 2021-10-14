@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>firsov.study</groupId>
-    <artifactId>sravniTaxiBot</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>sravniTaxiBot</name>
-    <description>Demo project for Spring Boot</description>
+    <artifactId>tg_taxi</artifactId>
+    <version>2.0</version>
+    <name>tg_taxi</name>
+    <description>Sravni taxi bot</description>
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
